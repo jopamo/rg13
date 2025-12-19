@@ -29,11 +29,13 @@ use crate::{Error, Match, PartialErrorBuilder};
 
 /// IgnoreMatch represents information about where a match came from when using
 /// the `Ignore` matcher.
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct IgnoreMatch<'a>(IgnoreMatchInner<'a>);
 
 /// IgnoreMatchInner describes precisely where the match information came from.
 /// This is private to allow expansion to more matchers in the future.
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 enum IgnoreMatchInner<'a> {
     Override(overrides::Glob<'a>),

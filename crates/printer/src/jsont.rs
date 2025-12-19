@@ -10,7 +10,7 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::str;
 
-use base64;
+use base64::Engine as _;
 use serde::{Serialize, Serializer};
 
 use crate::stats::Stats;
@@ -123,7 +123,7 @@ where
     T: AsRef<[u8]>,
     S: Serializer,
 {
-    ser.serialize_str(&base64::encode(&bytes))
+    ser.serialize_str(&base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
 fn ser_bytes<T, S>(bytes: T, ser: S) -> Result<S::Ok, S::Error>

@@ -212,6 +212,7 @@ pub enum RGArgKind {
         /// The name of the value used in the `-h/--help` output. By
         /// convention, this is an all-uppercase string. e.g., `PATH` or
         /// `PATTERN`.
+        #[allow(dead_code)]
         value_name: &'static str,
         /// Whether an argument can be repeated multiple times or not.
         ///
@@ -227,6 +228,7 @@ pub enum RGArgKind {
     /// A boolean switch.
     Switch {
         /// The long name of a flag. This is always non-empty.
+        #[allow(dead_code)]
         long: &'static str,
         /// The short name of a flag. This is empty if a flag only has a long
         /// name.
@@ -249,6 +251,7 @@ pub enum RGArgKind {
     /// A flag the accepts a single value.
     Flag {
         /// The long name of a flag. This is always non-empty.
+        #[allow(dead_code)]
         long: &'static str,
         /// The short name of a flag. This is empty if a flag only has a long
         /// name.
@@ -256,6 +259,7 @@ pub enum RGArgKind {
         /// The name of the value used in the `-h/--help` output. By
         /// convention, this is an all-uppercase string. e.g., `PATH` or
         /// `PATTERN`.
+        #[allow(dead_code)]
         value_name: &'static str,
         /// Whether this flag can be provided multiple times with multiple
         /// distinct values.
