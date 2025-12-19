@@ -8,7 +8,7 @@ use grep::cli;
 use grep::matcher::Matcher;
 #[cfg(feature = "pcre2")]
 use grep::pcre2::RegexMatcher as PCRE2RegexMatcher;
-use grep::printer::{Standard, Stats, Summary, JSON};
+use grep::printer::{JSON, Standard, Stats, Summary};
 use grep::regex::RegexMatcher as RustRegexMatcher;
 use grep::searcher::{BinaryDetection, Searcher};
 use ignore::overrides::Override;

@@ -4,7 +4,7 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process;
 
-use clap_complete::{generate_to, Shell};
+use clap_complete::{Shell, generate_to};
 
 use app::{RGArg, RGArgKind};
 
@@ -56,11 +56,7 @@ fn git_revision_hash() -> Option<String> {
         .output();
     result.ok().and_then(|output| {
         let v = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if v.is_empty() {
-            None
-        } else {
-            Some(v)
-        }
+        if v.is_empty() { None } else { Some(v) }
     })
 }
 

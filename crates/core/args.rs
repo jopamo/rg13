@@ -17,8 +17,8 @@ use grep::pcre2::{
     RegexMatcherBuilder as PCRE2RegexMatcherBuilder,
 };
 use grep::printer::{
-    default_color_specs, ColorSpecs, JSONBuilder, Standard, StandardBuilder,
-    Stats, Summary, SummaryBuilder, SummaryKind, JSON,
+    ColorSpecs, JSON, JSONBuilder, Standard, StandardBuilder, Stats, Summary,
+    SummaryBuilder, SummaryKind, default_color_specs,
 };
 use grep::regex::{
     RegexMatcher as RustRegexMatcher,
@@ -33,6 +33,7 @@ use ignore::{Walk, WalkBuilder, WalkParallel};
 use log;
 use termcolor::{BufferWriter, ColorChoice, WriteColor};
 
+use crate::Result;
 use crate::app;
 use crate::config;
 use crate::logger::Logger;
@@ -42,7 +43,6 @@ use crate::search::{
     PatternMatcher, Printer, SearchWorker, SearchWorkerBuilder,
 };
 use crate::subject::SubjectBuilder;
-use crate::Result;
 
 /// The command that ripgrep should execute based on the command line
 /// configuration.
@@ -534,11 +534,7 @@ impl ArgMatches {
         } else if self.is_present("type-list") {
             Command::Types
         } else if self.is_present("files") {
-            if threads == 1 {
-                Command::Files
-            } else {
-                Command::FilesParallel
-            }
+            if threads == 1 { Command::Files } else { Command::FilesParallel }
         } else if self.can_never_match(&patterns) {
             Command::SearchNever
         } else if threads == 1 {
@@ -1254,11 +1250,7 @@ impl ArgMatches {
             || count_matches
             || self.is_present("files-with-matches")
             || self.is_present("files-without-match");
-        if summary {
-            OutputKind::Summary
-        } else {
-            OutputKind::Standard
-        }
+        if summary { OutputKind::Summary } else { OutputKind::Standard }
     }
 
     /// Builds the set of glob overrides from the command line flags.
@@ -1355,11 +1347,7 @@ impl ArgMatches {
     /// Typically, this is only set to `\x00` when the --null flag is provided,
     /// and `None` otherwise.
     fn path_terminator(&self) -> Option<u8> {
-        if self.is_present("null") {
-            Some(b'\x00')
-        } else {
-            None
-        }
+        if self.is_present("null") { Some(b'\x00') } else { None }
     }
 
     /// Returns the unescaped field context separator. If one wasn't specified,
@@ -1649,9 +1637,39 @@ impl ArgMatches {
 impl ArgMatches {
     fn is_present(&self, name: &str) -> bool {
         match name {
-            "file" | "regexp" | "pattern" | "path" | "ignore-file" | "glob" | "iglob" | "type" | "type-not" | "type-add" | "type-clear" | "pre" | "pre-glob" | "sort" | "sortr" | "threads" | "max-depth" | "max-filesize" | "max-count" | "max-columns" | "after-context" | "before-context" | "context" | "context-separator" | "path-separator" | "field-context-separator" | "field-match-separator" | "encoding" | "color" | "colors" | "replace" | "regex-size-limit" | "dfa-size-limit" => {
-                self.0.contains_id(name)
-            }
+            "file"
+            | "regexp"
+            | "pattern"
+            | "path"
+            | "ignore-file"
+            | "glob"
+            | "iglob"
+            | "type"
+            | "type-not"
+            | "type-add"
+            | "type-clear"
+            | "pre"
+            | "pre-glob"
+            | "sort"
+            | "sortr"
+            | "threads"
+            | "max-depth"
+            | "max-filesize"
+            | "max-count"
+            | "max-columns"
+            | "after-context"
+            | "before-context"
+            | "context"
+            | "context-separator"
+            | "path-separator"
+            | "field-context-separator"
+            | "field-match-separator"
+            | "encoding"
+            | "color"
+            | "colors"
+            | "replace"
+            | "regex-size-limit"
+            | "dfa-size-limit" => self.0.contains_id(name),
             _ => self.0.get_flag(name),
         }
     }
@@ -1662,17 +1680,39 @@ impl ArgMatches {
 
     fn value_of_lossy(&self, name: &str) -> Option<String> {
         match name {
-            "pattern" | "path" | "file" | "regexp" | "ignore-file" | "pre" | "context-separator" | "path-separator" | "field-context-separator" | "field-match-separator" => {
-                self.0.get_one::<OsString>(name).and_then(|s| s.to_str().map(|s| s.to_string()))
-            }
+            "pattern"
+            | "path"
+            | "file"
+            | "regexp"
+            | "ignore-file"
+            | "pre"
+            | "context-separator"
+            | "path-separator"
+            | "field-context-separator"
+            | "field-match-separator" => self
+                .0
+                .get_one::<OsString>(name)
+                .and_then(|s| s.to_str().map(|s| s.to_string())),
             _ => self.0.get_one::<String>(name).cloned(),
         }
     }
 
     fn values_of_lossy(&self, name: &str) -> Option<Vec<String>> {
         match name {
-            "pattern" | "path" | "file" | "regexp" | "ignore-file" | "pre" | "context-separator" | "path-separator" | "field-context-separator" | "field-match-separator" => {
-                self.0.get_many::<OsString>(name).map(|v| v.filter_map(|s| s.to_str().map(|s| s.to_string())).collect())
+            "pattern"
+            | "path"
+            | "file"
+            | "regexp"
+            | "ignore-file"
+            | "pre"
+            | "context-separator"
+            | "path-separator"
+            | "field-context-separator"
+            | "field-match-separator" => {
+                self.0.get_many::<OsString>(name).map(|v| {
+                    v.filter_map(|s| s.to_str().map(|s| s.to_string()))
+                        .collect()
+                })
             }
             _ => self.0.get_many::<String>(name).map(|v| v.cloned().collect()),
         }
@@ -1680,14 +1720,26 @@ impl ArgMatches {
 
     fn value_of_os(&self, name: &str) -> Option<&OsStr> {
         match name {
-            "pattern" | "path" | "file" | "regexp" | "ignore-file" | "pre" | "context-separator" | "path-separator" | "field-context-separator" | "field-match-separator" => {
+            "pattern"
+            | "path"
+            | "file"
+            | "regexp"
+            | "ignore-file"
+            | "pre"
+            | "context-separator"
+            | "path-separator"
+            | "field-context-separator"
+            | "field-match-separator" => {
                 self.0.get_one::<OsString>(name).map(|v| v.as_os_str())
             }
             _ => self.0.get_one::<String>(name).map(|v| OsStr::new(v)),
         }
     }
 
-    fn values_of_os(&self, name: &str) -> Option<clap::parser::ValuesRef<'_, OsString>> {
+    fn values_of_os(
+        &self,
+        name: &str,
+    ) -> Option<clap::parser::ValuesRef<'_, OsString>> {
         self.0.get_many::<OsString>(name)
     }
 }
@@ -1781,11 +1833,7 @@ where
         Ok(t) => t,
         Err(_) => return cmp::Ordering::Equal,
     };
-    if reverse {
-        t1.cmp(&t2).reverse()
-    } else {
-        t1.cmp(&t2)
-    }
+    if reverse { t1.cmp(&t2).reverse() } else { t1.cmp(&t2) }
 }
 
 /// Returns a clap matches object if the given arguments parse successfully.

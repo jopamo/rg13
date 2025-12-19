@@ -9,7 +9,7 @@
 // is where we read clap's configuration from the end user's arguments and turn
 // it into a ripgrep-specific configuration type that is not coupled with clap.
 
-use clap::{self, crate_authors, crate_version, Command, Arg, ArgAction};
+use clap::{self, Arg, ArgAction, Command, crate_authors, crate_version};
 use lazy_static::lazy_static;
 
 const ABOUT: &str = "
@@ -305,7 +305,8 @@ impl RGArg {
     /// check whether the flag is present or not. Otherwise, consumers may
     /// inspect the number of times the switch is used.
     fn switch(long_name: &'static str) -> RGArg {
-        let claparg = Arg::new(long_name).long(long_name).action(ArgAction::SetTrue);
+        let claparg =
+            Arg::new(long_name).long(long_name).action(ArgAction::SetTrue);
         RGArg {
             claparg,
             name: long_name,
@@ -364,7 +365,10 @@ impl RGArg {
                 *short = Some(name);
             }
         }
-        let c = name.chars().next().expect("short flag must have at least one char");
+        let c = name
+            .chars()
+            .next()
+            .expect("short flag must have at least one char");
         self.claparg = self.claparg.short(c);
         self
     }
@@ -445,7 +449,9 @@ impl RGArg {
                 *possible_values = values.to_vec();
                 self.claparg = self
                     .claparg
-                    .value_parser(clap::builder::PossibleValuesParser::new(values))
+                    .value_parser(clap::builder::PossibleValuesParser::new(
+                        values,
+                    ))
                     .hide_possible_values(true);
             }
         }
@@ -514,7 +520,11 @@ impl RGArg {
         value: &'static str,
         arg_name: &'static str,
     ) -> RGArg {
-        self.claparg = self.claparg.default_value_if(arg_name, clap::builder::ArgPredicate::IsPresent, value);
+        self.claparg = self.claparg.default_value_if(
+            arg_name,
+            clap::builder::ArgPredicate::IsPresent,
+            value,
+        );
         self
     }
 
@@ -526,7 +536,8 @@ impl RGArg {
 
     /// Indicate that any value given to this argument should be an OsString.
     fn value_parser_os(mut self) -> RGArg {
-        self.claparg = self.claparg.value_parser(clap::value_parser!(std::ffi::OsString));
+        self.claparg =
+            self.claparg.value_parser(clap::value_parser!(std::ffi::OsString));
         self
     }
 }

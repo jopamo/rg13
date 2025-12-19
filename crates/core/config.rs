@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use bstr::{io::BufReadExt, ByteSlice};
+use bstr::{ByteSlice, io::BufReadExt};
 use log;
 
 use crate::Result;
