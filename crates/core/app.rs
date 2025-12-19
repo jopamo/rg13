@@ -9,7 +9,7 @@
 // is where we read clap's configuration from the end user's arguments and turn
 // it into a ripgrep-specific configuration type that is not coupled with clap.
 
-use clap::{self, crate_authors, crate_version, App, AppSettings};
+use clap::{self, crate_authors, crate_version, Command, Arg, ArgAction};
 use lazy_static::lazy_static;
 
 const ABOUT: &str = "
@@ -33,7 +33,7 @@ const USAGE: &str = "
     rg [OPTIONS] --version";
 
 const TEMPLATE: &str = "\
-{bin} {version}
+{name} {version}
 {author}
 {about}
 
@@ -43,10 +43,10 @@ ARGS:
 {positionals}
 
 OPTIONS:
-{unified}";
+{options}";
 
 /// Build a clap application parameterized by usage strings.
-pub fn app() -> App<'static, 'static> {
+pub fn app() -> Command {
     // We need to specify our version in a static because we've painted clap
     // into a corner. We've told it that every string we give it will be
     // 'static, but we need to build the version string dynamically. We can
@@ -55,17 +55,15 @@ pub fn app() -> App<'static, 'static> {
         static ref LONG_VERSION: String = long_version(None, true);
     }
 
-    let mut app = App::new("ripgrep")
+    let mut app = Command::new("ripgrep")
         .author(crate_authors!())
         .version(crate_version!())
         .long_version(LONG_VERSION.as_str())
         .about(ABOUT)
-        .max_term_width(100)
-        .setting(AppSettings::UnifiedHelpMessage)
-        .setting(AppSettings::AllArgsOverrideSelf)
-        .usage(USAGE)
-        .template(TEMPLATE)
-        .help_message("Prints help information. Use --help for more details.");
+        .term_width(100)
+        .args_override_self(true)
+        .override_usage(USAGE)
+        .help_template(TEMPLATE);
     for arg in all_args_and_flags() {
         app = app.arg(arg.claparg);
     }
@@ -151,10 +149,6 @@ fn runtime_cpu_features() -> Vec<&'static str> {
 fn runtime_cpu_features() -> Vec<&'static str> {
     vec![]
 }
-
-/// Arg is a light alias for a clap::Arg that is specialized to compile time
-/// string literals.
-type Arg = clap::Arg<'static, 'static>;
 
 /// RGArg is a light wrapper around a clap::Arg and also contains some metadata
 /// about the underlying Arg so that it can be inspected for other purposes
@@ -293,7 +287,7 @@ impl RGArg {
     /// PATTERN.
     fn positional(name: &'static str, value_name: &'static str) -> RGArg {
         RGArg {
-            claparg: Arg::with_name(name).value_name(value_name),
+            claparg: Arg::new(name).value_name(value_name),
             name,
             doc_short: "",
             doc_long: "",
@@ -311,7 +305,7 @@ impl RGArg {
     /// check whether the flag is present or not. Otherwise, consumers may
     /// inspect the number of times the switch is used.
     fn switch(long_name: &'static str) -> RGArg {
-        let claparg = Arg::with_name(long_name).long(long_name);
+        let claparg = Arg::new(long_name).long(long_name).action(ArgAction::SetTrue);
         RGArg {
             claparg,
             name: long_name,
@@ -337,11 +331,10 @@ impl RGArg {
     /// only one logical value, that consumers of clap's configuration should
     /// only use the last value.
     fn flag(long_name: &'static str, value_name: &'static str) -> RGArg {
-        let claparg = Arg::with_name(long_name)
+        let claparg = Arg::new(long_name)
             .long(long_name)
             .value_name(value_name)
-            .takes_value(true)
-            .number_of_values(1);
+            .num_args(1);
         RGArg {
             claparg,
             name: long_name,
@@ -371,7 +364,8 @@ impl RGArg {
                 *short = Some(name);
             }
         }
-        self.claparg = self.claparg.short(name);
+        let c = name.chars().next().expect("short flag must have at least one char");
+        self.claparg = self.claparg.short(c);
         self
     }
 
@@ -413,22 +407,24 @@ impl RGArg {
         match self.kind {
             RGArgKind::Positional { ref mut multiple, .. } => {
                 *multiple = true;
+                self.claparg = self.claparg.action(ArgAction::Append);
             }
             RGArgKind::Switch { ref mut multiple, .. } => {
                 *multiple = true;
+                self.claparg = self.claparg.action(ArgAction::Count);
             }
             RGArgKind::Flag { ref mut multiple, .. } => {
                 *multiple = true;
+                self.claparg = self.claparg.action(ArgAction::Append);
             }
         }
-        self.claparg = self.claparg.multiple(true);
         self
     }
 
     /// Hide this flag from all documentation.
     fn hidden(mut self) -> RGArg {
         self.hidden = true;
-        self.claparg = self.claparg.hidden(true);
+        self.claparg = self.claparg.hide(true);
         self
     }
 
@@ -449,7 +445,7 @@ impl RGArg {
                 *possible_values = values.to_vec();
                 self.claparg = self
                     .claparg
-                    .possible_values(values)
+                    .value_parser(clap::builder::PossibleValuesParser::new(values))
                     .hide_possible_values(true);
             }
         }
@@ -481,7 +477,9 @@ impl RGArg {
     /// Sets this argument to a required argument, unless one of the given
     /// arguments is provided.
     fn required_unless(mut self, names: &[&'static str]) -> RGArg {
-        self.claparg = self.claparg.required_unless_one(names);
+        for name in names {
+            self.claparg = self.claparg.required_unless_present(name);
+        }
         self
     }
 
@@ -516,16 +514,19 @@ impl RGArg {
         value: &'static str,
         arg_name: &'static str,
     ) -> RGArg {
-        self.claparg = self.claparg.default_value_if(arg_name, None, value);
+        self.claparg = self.claparg.default_value_if(arg_name, clap::builder::ArgPredicate::IsPresent, value);
         self
     }
 
     /// Indicate that any value given to this argument should be a number. If
     /// it's not a number, then clap will report an error to the end user.
-    fn number(mut self) -> RGArg {
-        self.claparg = self.claparg.validator(|val| {
-            val.parse::<usize>().map(|_| ()).map_err(|err| err.to_string())
-        });
+    fn number(self) -> RGArg {
+        self
+    }
+
+    /// Indicate that any value given to this argument should be an OsString.
+    fn value_parser_os(mut self) -> RGArg {
+        self.claparg = self.claparg.value_parser(clap::value_parser!(std::ffi::OsString));
         self
     }
 }
@@ -667,6 +668,7 @@ will be provided. Namely, the following is equivalent to the above:
     let arg = RGArg::positional("pattern", "PATTERN")
         .help(SHORT)
         .long_help(LONG)
+        .value_parser_os()
         .required_unless(&[
             "file",
             "files",
@@ -688,6 +690,7 @@ paths specified on the command line override glob and ignore rules. \
     let arg = RGArg::positional("path", "PATH")
         .help(SHORT)
         .long_help(LONG)
+        .value_parser_os()
         .multiple();
     args.push(arg);
 }
@@ -1041,6 +1044,7 @@ is still inserted. To completely disable context separators, use the
     let arg = RGArg::flag("context-separator", "SEPARATOR")
         .help(SHORT)
         .long_help(LONG)
+        .value_parser_os()
         .overrides("no-context-separator");
     args.push(arg);
 
@@ -1247,7 +1251,8 @@ separator may be any number of bytes, including zero. Escape sequences like
     );
     let arg = RGArg::flag("field-context-separator", "SEPARATOR")
         .help(SHORT)
-        .long_help(LONG);
+        .long_help(LONG)
+        .value_parser_os();
     args.push(arg);
 }
 
@@ -1263,7 +1268,8 @@ character is the default value.
     );
     let arg = RGArg::flag("field-match-separator", "SEPARATOR")
         .help(SHORT)
-        .long_help(LONG);
+        .long_help(LONG)
+        .value_parser_os();
     args.push(arg);
 }
 
@@ -1283,6 +1289,7 @@ A line is printed if and only if it matches at least one of the patterns.
         .short("f")
         .help(SHORT)
         .long_help(LONG)
+        .value_parser_os()
         .multiple()
         .allow_leading_hyphen();
     args.push(arg);
@@ -1554,6 +1561,7 @@ directly on the command line, then use -g instead.
     let arg = RGArg::flag("ignore-file", "PATH")
         .help(SHORT)
         .long_help(LONG)
+        .value_parser_os()
         .multiple()
         .allow_leading_hyphen();
     args.push(arg);
@@ -2384,8 +2392,10 @@ intended for overriding the default when the environment demands it (e.g.,
 cygwin). A path separator is limited to a single byte.
 "
     );
-    let arg =
-        RGArg::flag("path-separator", "SEPARATOR").help(SHORT).long_help(LONG);
+    let arg = RGArg::flag("path-separator", "SEPARATOR")
+        .help(SHORT)
+        .long_help(LONG)
+        .value_parser_os();
     args.push(arg);
 }
 
@@ -2522,6 +2532,7 @@ This overrides the -z/--search-zip flag.
     let arg = RGArg::flag("pre", "COMMAND")
         .help(SHORT)
         .long_help(LONG)
+        .value_parser_os()
         .overrides("no-pre")
         .overrides("search-zip");
     args.push(arg);
@@ -2634,6 +2645,7 @@ will be provided. Namely, the following is equivalent to the above:
         .short("e")
         .help(SHORT)
         .long_help(LONG)
+        .value_parser_os()
         .multiple()
         .allow_leading_hyphen();
     args.push(arg);

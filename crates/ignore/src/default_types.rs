@@ -308,7 +308,9 @@ mod tests {
     fn default_types_are_sorted() {
         let mut names = DEFAULT_TYPES.iter().map(|(name, _exts)| name);
 
-        let Some(mut previous_name) = names.next() else { return; };
+        let Some(mut previous_name) = names.next() else {
+            return;
+        };
 
         for name in names {
             assert!(

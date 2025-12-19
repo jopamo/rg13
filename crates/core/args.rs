@@ -336,7 +336,7 @@ impl Args {
 /// `ArgMatches` wraps `clap::ArgMatches` and provides semantic meaning to
 /// the parsed arguments.
 #[derive(Clone, Debug)]
-struct ArgMatches(clap::ArgMatches<'static>);
+struct ArgMatches(clap::ArgMatches);
 
 /// The output format. Generally, this corresponds to the printer that ripgrep
 /// uses to show search results.
@@ -473,7 +473,7 @@ enum EncodingMode {
 
 impl ArgMatches {
     /// Create an ArgMatches from clap's parse result.
-    fn new(clap_matches: clap::ArgMatches<'static>) -> ArgMatches {
+    fn new(clap_matches: clap::ArgMatches) -> ArgMatches {
         ArgMatches(clap_matches)
     }
 
@@ -1648,27 +1648,47 @@ impl ArgMatches {
 /// define the ones we need.
 impl ArgMatches {
     fn is_present(&self, name: &str) -> bool {
-        self.0.is_present(name)
+        match name {
+            "file" | "regexp" | "pattern" | "path" | "ignore-file" | "glob" | "iglob" | "type" | "type-not" | "type-add" | "type-clear" | "pre" | "pre-glob" | "sort" | "sortr" | "threads" | "max-depth" | "max-filesize" | "max-count" | "max-columns" | "after-context" | "before-context" | "context" | "context-separator" | "path-separator" | "field-context-separator" | "field-match-separator" | "encoding" | "color" | "colors" | "replace" | "regex-size-limit" | "dfa-size-limit" => {
+                self.0.contains_id(name)
+            }
+            _ => self.0.get_flag(name),
+        }
     }
 
     fn occurrences_of(&self, name: &str) -> u64 {
-        self.0.occurrences_of(name)
+        self.0.get_count(name) as u64
     }
 
     fn value_of_lossy(&self, name: &str) -> Option<String> {
-        self.0.value_of_lossy(name).map(|s| s.into_owned())
+        match name {
+            "pattern" | "path" | "file" | "regexp" | "ignore-file" | "pre" | "context-separator" | "path-separator" | "field-context-separator" | "field-match-separator" => {
+                self.0.get_one::<OsString>(name).and_then(|s| s.to_str().map(|s| s.to_string()))
+            }
+            _ => self.0.get_one::<String>(name).cloned(),
+        }
     }
 
     fn values_of_lossy(&self, name: &str) -> Option<Vec<String>> {
-        self.0.values_of_lossy(name)
+        match name {
+            "pattern" | "path" | "file" | "regexp" | "ignore-file" | "pre" | "context-separator" | "path-separator" | "field-context-separator" | "field-match-separator" => {
+                self.0.get_many::<OsString>(name).map(|v| v.filter_map(|s| s.to_str().map(|s| s.to_string())).collect())
+            }
+            _ => self.0.get_many::<String>(name).map(|v| v.cloned().collect()),
+        }
     }
 
     fn value_of_os(&self, name: &str) -> Option<&OsStr> {
-        self.0.value_of_os(name)
+        match name {
+            "pattern" | "path" | "file" | "regexp" | "ignore-file" | "pre" | "context-separator" | "path-separator" | "field-context-separator" | "field-match-separator" => {
+                self.0.get_one::<OsString>(name).map(|v| v.as_os_str())
+            }
+            _ => self.0.get_one::<String>(name).map(|v| OsStr::new(v)),
+        }
     }
 
-    fn values_of_os(&self, name: &str) -> Option<clap::OsValues<'_>> {
-        self.0.values_of_os(name)
+    fn values_of_os(&self, name: &str) -> Option<clap::parser::ValuesRef<'_, OsString>> {
+        self.0.get_many::<OsString>(name)
     }
 }
 
@@ -1774,12 +1794,12 @@ where
 /// corresponds to a `--help` or `--version` request. In which case, the
 /// corresponding output is printed and the current process is exited
 /// successfully.
-fn clap_matches<I, T>(args: I) -> Result<clap::ArgMatches<'static>>
+fn clap_matches<I, T>(args: I) -> Result<clap::ArgMatches>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    let err = match app::app().get_matches_from_safe(args) {
+    let err = match app::app().try_get_matches_from(args) {
         Ok(matches) => return Ok(matches),
         Err(err) => err,
     };

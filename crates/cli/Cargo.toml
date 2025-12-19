@@ -14,13 +14,13 @@ license = "Unlicense OR MIT"
 edition = "2018"
 
 [dependencies]
-bstr = "1.6.0"
+bstr = "1.12.1"
 globset = { version = "0.4.10", path = "../globset" }
-lazy_static = "1.1.0"
-log = "0.4.5"
-regex = "1.1"
-same-file = "1.0.4"
-termcolor = "1.0.4"
+lazy_static = "1.5.0"
+log = "0.4.29"
+regex = "1.12"
+same-file = "1.0.6"
+termcolor = "1.4.1"
 
 [target.'cfg(windows)'.dependencies.winapi-util]
-version = "0.1.1"
+version = "0.1.11"
